@@ -1,0 +1,15 @@
+# EE3305/ME3243
+# Name: Ong Jia Yuan 
+# Matric number: A0201643U
+
+# enter the rest of the variables (9 variables total)
+Kp_a: 0.9
+Ki_a: 0.01
+Kd_a: 0.01
+Kp_x: 0.4
+Ki_x: 0.01
+Kd_x: 0.1
+dt: 0.1
+goal_x: 3.5
+goal_y: 7.5
+
