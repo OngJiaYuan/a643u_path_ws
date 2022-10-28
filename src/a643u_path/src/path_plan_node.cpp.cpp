@@ -89,7 +89,7 @@ std::vector<std::array<int, 2>> findPath(int idx_x, int idx_y, int goal_x, int g
       {
         path.push_back({node->x, node->y}); // break loop function start put current node in front of the path queue as current node is goal node
         node = node->parent;                // assign node as parent node
-      } while (node != nullptr);            // ...
+      } while (node != nullptr);            // make sure node is not null 
       break;
     }
     // END OF YOUR COMMENT HERE

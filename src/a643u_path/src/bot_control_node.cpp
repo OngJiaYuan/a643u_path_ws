@@ -10,8 +10,8 @@
 #include <geometry_msgs/Twist.h>
 #include <math.h>
 
-const double MAX_LINEAR_VEL = 0.7;   // real life max is 2.2, sim can go faster.
-const double MAX_ANGULAR_VEL = M_PI; // M_PI from math.h. Real max is higher, sim can go faster.
+const double MAX_LINEAR_VEL = 0.22;   // real life max is 2.2, sim can go faster.
+const double MAX_ANGULAR_VEL = 2.84;//M_PI; // M_PI from math.h. Real max is higher, sim can go faster.
 
 // ============================ (A) Callbacks for Subscribers ============================
 double target_x, target_y, goal_reached = 0;
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
 
   // ------------------------  (1) LOAD ROS PARAMS ------------------------
-  double Kp_a, Ki_a, Kd_a, Kp_x, Ki_x, Kd_x, dt;
+  double Kp_a, Ki_a, Kd_a, Kp_x, Ki_x, Kd_x, dt , robot_radius;
   if (!nh.getParam("Kp_a", Kp_a))
   {
     ROS_ERROR("Kp_a Load Error");
@@ -86,6 +86,12 @@ int main(int argc, char **argv)
     ros::requestShutdown();
     return 1;
   }
+  if (!nh.getParam("robot_radius", robot_radius))
+  {
+    ROS_ERROR("robot_radius Load Error");
+    ros::requestShutdown();
+    return 1;
+  }
 
   // ------------------------  (2) LOAD SUBSCRIBERS / PUBLISHERS and MESSAGES ------------------------
   ros::Subscriber sub_planner = nh.subscribe<std_msgs::Float64MultiArray>("/planner", 1, plannerCallback);
@@ -110,6 +116,7 @@ int main(int argc, char **argv)
   double target_heading;
   double I_angular, I_linear, D_angular, D_pos; // can be used for PID
   double P_angular,P_linear;
+  double sum_p_linear = 0,sum_p_ang = 0,sum_i_linear = 0,sum_i_ang = 0,sum_d_linear = 0,sum_d_ang = 0,iter = 0,sum_x_error = 0,sum_ang_error =0;
   ros::Rate rate(1 / dt);                       // makes sure each iteration is at least dt long
   while (ros::ok() && goal_reached == 0)
   {
@@ -120,6 +127,7 @@ int main(int argc, char **argv)
     error_heading_prev = error_heading;
 
     error_x = target_x - pos_x; // toward the center of the cell
+    sum_x_error += error_x;
     error_y = target_y - pos_y;
     error_pos = sqrt(error_x * error_x + error_y * error_y);
 
@@ -131,21 +139,32 @@ int main(int argc, char **argv)
       error_heading += 2 * M_PI;
     if (error_heading > M_PI)
       error_heading -= 2 * M_PI;
+    
+    sum_ang_error += error_heading;
 
     // === (b) PID SUMS ===
     // ROS_INFO("[Bot Control Node]: %f,%f", error_x, error_y); // print example
 
     I_angular = dt * error_heading;
     I_linear = dt * error_pos;
+    sum_i_linear += I_linear;
+    sum_i_ang += I_angular;
+
     D_angular = (error_heading_prev - error_heading) / dt;
     D_pos = (error_pos_prev - error_pos) / dt;
+    sum_d_ang += D_angular;
+    sum_d_linear += D_pos;
 
     // ENTER YOUR PID CODE HERE
     P_angular = Kp_a * error_heading;
 	  P_linear = Kp_x * error_pos; // P part of the PID 
+    sum_p_linear +=  P_linear;
+    sum_p_ang += P_angular;
 
     vel_x = P_linear + Ki_x*I_linear + Kd_x*D_pos; // trans angle and vel 
     vel_heading = P_angular + Ki_a*I_angular + Kd_a*D_angular;
+
+    iter += 1;
     // END OF YOUR PID CODE HERE
     
     // === (c) SATURATE ===
@@ -158,7 +177,9 @@ int main(int argc, char **argv)
     if (vel_heading < -MAX_ANGULAR_VEL)
       vel_heading = -MAX_ANGULAR_VEL;
 
+
     
+
     // === (d) MOVE ROBOT ===
     msg_cmd.linear.x = vel_x;
     msg_cmd.angular.z = vel_heading;
@@ -166,6 +187,10 @@ int main(int argc, char **argv)
 
     ROS_INFO("trans_x:%f, trans_ang:%f",  vel_x, vel_heading);//check whether its correct 
     ROS_INFO("target_x:%f, target_y:%f , current_x:%f , current_y:%f",target_x,target_y,pos_x,pos_y);
+    ROS_INFO("Average_P_Linear:%f, Average_P_Ang:%f ",sum_p_linear/iter,sum_p_ang/iter);
+    ROS_INFO("Average_I_Linear:%f, Average_I_Ang:%f ",sum_i_linear/iter,sum_i_ang/iter);
+    ROS_INFO("Average_D_Linear:%f, Average_D_Ang:%f ",sum_d_linear/iter,sum_d_ang/iter);
+    ROS_INFO("Average_Linear:%f, Average_Ang:%f ",sum_x_error/iter,sum_ang_error/iter);
     // === (e) CONTROL LOOP RATE (REQUIRED TO MAKE SURE DT IS MAINTAINED) ===
     rate.sleep();
   }
