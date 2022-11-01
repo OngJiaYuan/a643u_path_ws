@@ -1,2 +1,0 @@
-a643u_path
--DCATKIN_DEVEL_PREFIX=/home/jy/a643u_path_ws/devel -DCMAKE_INSTALL_PREFIX=/home/jy/a643u_path_ws/install -G Unix Makefiles

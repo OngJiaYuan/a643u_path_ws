@@ -1,6 +1,6 @@
 {
+    "ros.distro": "noetic",
     "python.autoComplete.extraPaths": [
         "/opt/ros/noetic/lib/python3/dist-packages"
-    ],
-    "ros.distro": "noetic"
+    ]
 }
