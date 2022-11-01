@@ -9,6 +9,7 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Twist.h>
 #include <math.h>
+#include <std_msgs/Float32.h>
 
 const double MAX_LINEAR_VEL = 0.22;   // real life max is 2.2, sim can go faster.
 const double MAX_ANGULAR_VEL = 2.84;//M_PI; // M_PI from math.h. Real max is higher, sim can go faster.
@@ -96,6 +97,8 @@ int main(int argc, char **argv)
   // ------------------------  (2) LOAD SUBSCRIBERS / PUBLISHERS and MESSAGES ------------------------
   ros::Subscriber sub_planner = nh.subscribe<std_msgs::Float64MultiArray>("/planner", 1, plannerCallback);
   ros::Subscriber sub_odom = nh.subscribe<nav_msgs::Odometry>("/odom", 1, odomCallback);
+  ros::Publisher error_forward_pub_ = nh.advertise<std_msgs::Float32>("/error_forward", 1); 
+  ros::Publisher error_angle_pub_ = nh.advertise<std_msgs::Float32>("/error_angle", 1);
   ros::Publisher pub_cmd = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
   geometry_msgs::Twist msg_cmd; // for cmd_vel (values are by default initialised to zero)
 
@@ -116,6 +119,7 @@ int main(int argc, char **argv)
   double target_heading;
   double I_angular, I_linear, D_angular, D_pos; // can be used for PID
   double P_angular,P_linear;
+  std_msgs::Float32 error_lin,error_ang;
   double sum_p_linear = 0,sum_p_ang = 0,sum_i_linear = 0,sum_i_ang = 0,sum_d_linear = 0,sum_d_ang = 0,iter = 0,sum_x_error = 0,sum_ang_error =0;
   ros::Rate rate(1 / dt);                       // makes sure each iteration is at least dt long
   while (ros::ok() && goal_reached == 0)
@@ -142,6 +146,9 @@ int main(int argc, char **argv)
     
     sum_ang_error += error_heading;
 
+    
+    error_lin.data = error_pos;
+    error_ang.data = error_heading;
     // === (b) PID SUMS ===
     // ROS_INFO("[Bot Control Node]: %f,%f", error_x, error_y); // print example
 
@@ -184,6 +191,13 @@ int main(int argc, char **argv)
     msg_cmd.linear.x = vel_x;
     msg_cmd.angular.z = vel_heading;
     pub_cmd.publish(msg_cmd);
+
+    // publish to angle and forward error
+   
+	  error_angle_pub_.publish(error_ang);
+    error_forward_pub_.publish(error_lin);
+
+    
 
     ROS_INFO("trans_x:%f, trans_ang:%f",  vel_x, vel_heading);//check whether its correct 
     ROS_INFO("target_x:%f, target_y:%f , current_x:%f , current_y:%f",target_x,target_y,pos_x,pos_y);
